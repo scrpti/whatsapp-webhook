@@ -83,30 +83,72 @@ app.post('/webhook', async (req, res) => {
   
 
   if (sesion.paso === 'alergenos') {
-    const alergenosArr = texto.split(',').map(x => x.trim() === '1');
-    if (alergenosArr.length !== 14) {
-      return res.send(`<Response><Message>❌ Error: deben ser exactamente 14 alérgenos (0 o 1)</Message></Response>`);
-    }
+    const ALERGENOS = [
+      'gluten', 'crustaceos', 'huevo', 'pescado', 'cacahuetes',
+      'soja', 'lacteos', 'frutos de cascara', 'apio', 'mostaza',
+      'sesamo', 'sulfitos', 'altramuces', 'moluscos'
+    ];
+  
+    const mencionados = texto
+      .toLowerCase()
+      .split(',')
+      .map(x => x.trim())
+      .filter(x => x.length > 0);
+  
+    const alergenosArr = ALERGENOS.map(a => mencionados.includes(a));
+  
     sesion.data.alergenos = alergenosArr;
     sesion.paso = 'trazas';
+  
     return res.send(`<Response><Message>📌 ¿Qué trazas quieres indicar?</Message></Response>`);
   }
+  
 
   if (sesion.paso === 'trazas') {
     sesion.data.trazas = texto;
-
-    try {
-      const Producto = require('./models/Producto');
-      const nuevo = new Producto(sesion.data);
-      await nuevo.save();
-      sesiones.delete(From);
-      return res.send(`<Response><Message>✅ Producto "${sesion.data.nombre}" creado correctamente.</Message></Response>`);
-    } catch (err) {
-      console.error(err);
-      sesiones.delete(From);
-      return res.send(`<Response><Message>❌ Error al guardar el producto: ${err.message}</Message></Response>`);
-    }
+  
+    const ALERGENOS = [
+      'gluten', 'crustaceos', 'huevo', 'pescado', 'cacahuetes',
+      'soja', 'lacteos', 'frutos de cascara', 'apio', 'mostaza',
+      'sesamo', 'sulfitos', 'altramuces', 'moluscos'
+    ];
+  
+    const alergenosMarcados = ALERGENOS.filter((a, i) => sesion.data.alergenos[i]);
+  
+    sesion.paso = 'confirmacion';
+  
+    return res.send(`<Response><Message>
+  ✅ Este es el resumen del producto:
+  
+  🧾 Nombre: ${sesion.data.nombre}
+  🖼 Imagen: ${sesion.data.urlImagen || 'Sin imagen'}
+  ⚠️ Alérgenos: ${alergenosMarcados.join(', ') || 'Ninguno'}
+  📌 Trazas: ${sesion.data.trazas}
+  
+  ¿Querés guardarlo? (sí / no)
+  </Message></Response>`);
   }
+  
+  if (sesion.paso === 'confirmacion') {
+    if (lower === 'sí' || lower === 'si') {
+      try {
+        const Producto = require('./models/Producto');
+        const nuevo = new Producto(sesion.data);
+        await nuevo.save();
+        sesiones.delete(From);
+        return res.send(`<Response><Message>✅ Producto guardado correctamente.</Message></Response>`);
+      } catch (err) {
+        console.error(err);
+        sesiones.delete(From);
+        return res.send(`<Response><Message>❌ Error al guardar el producto: ${err.message}</Message></Response>`);
+      }
+    } else if (lower === 'no') {
+      sesiones.delete(From);
+      return res.send(`<Response><Message>🚫 Operación cancelada. El producto no fue guardado.</Message></Response>`);
+    } else {
+      return res.send(`<Response><Message>❓ Responde "sí" para guardar o "no" para cancelar.</Message></Response>`);
+    }
+  }  
 
   sesiones.delete(From);
   return res.send(`<Response><Message>⚠️ Algo salió mal. Empezá de nuevo con "crearproducto"</Message></Response>`);
