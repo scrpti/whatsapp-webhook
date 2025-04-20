@@ -33,11 +33,59 @@ app.post('/webhook', async (req, res) => {
     if (lower === 'crearproducto') {
       sesiones.set(From, { paso: 'nombre', data: {} });
       return res.send(`<Response><Message>👍 Empecemos. ¿Cuál es el nombre del producto?</Message></Response>`);
-    } else {
-      return res.send(`<Response><Message>Escribe "crearproducto" para comenzar a crear un nuevo producto.</Message></Response>`);
+    }
+  
+    // Enviar botones interactivos si no escribe "crearproducto"
+    try {
+      await axios.post(
+        `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages`,
+        {
+          to: From,
+          from: process.env.TWILIO_WHATSAPP_NUMBER,
+          type: "interactive",
+          interactive: {
+            type: "button",
+            body: {
+              text: "¿Querés crear un producto nuevo?"
+            },
+            action: {
+              buttons: [
+                {
+                  type: "reply",
+                  reply: {
+                    id: "crear_si",
+                    title: "Sí"
+                  }
+                },
+                {
+                  type: "reply",
+                  reply: {
+                    id: "crear_no",
+                    title: "No"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          auth: {
+            username: process.env.TWILIO_ACCOUNT_SID,
+            password: process.env.TWILIO_AUTH_TOKEN
+          },
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+  
+      return res.send('<Response></Response>'); // Para evitar doble respuesta
+    } catch (err) {
+      console.error("❌ Error al enviar botones:", err.message);
+      return res.send(`<Response><Message>❌ No pude mostrar las opciones. Intentá otra vez.</Message></Response>`);
     }
   }
-
+  
   const sesion = sesiones.get(From);
 
   if (sesion.paso === 'nombre') {
