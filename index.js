@@ -27,7 +27,7 @@ const sesiones = new Map();
 app.post('/webhook', async (req, res) => {
   console.log("🟢 Mensaje recibido");
   console.log(req.body);
-  
+
   const { From, Body } = req.body;
   const texto = Body.trim();
   const lower = texto.toLowerCase();
@@ -205,7 +205,14 @@ app.post('/webhook', async (req, res) => {
   return res.send(`<Response><Message>⚠️ Algo salió mal. Empezá de nuevo con "crearproducto"</Message></Response>`);
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
+
+app._router.stack.forEach(r => {
+  if (r.route && r.route.path) {
+    console.log(`🧭 Ruta activa: ${r.route.path}`);
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
 });
