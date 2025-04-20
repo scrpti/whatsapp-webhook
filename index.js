@@ -25,6 +25,9 @@ mongoose.connect(process.env.MONGO_URI)
 const sesiones = new Map();
 
 app.post('/webhook', async (req, res) => {
+  console.log("🟢 Mensaje recibido");
+  console.log(req.body);
+  
   const { From, Body } = req.body;
   const texto = Body.trim();
   const lower = texto.toLowerCase();
