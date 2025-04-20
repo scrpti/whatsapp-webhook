@@ -193,3 +193,12 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
 });
+
+
+process.on('uncaughtException', err => {
+  console.error('💥 uncaughtException:', err);
+});
+
+process.on('unhandledRejection', err => {
+  console.error('💥 unhandledRejection:', err);
+});
