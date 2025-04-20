@@ -194,6 +194,10 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
 });
 
+app.get('/', (req, res) => {
+  res.send('🟢 Bot activo');
+});
+
 
 process.on('uncaughtException', err => {
   console.error('💥 uncaughtException:', err);
@@ -202,3 +206,4 @@ process.on('uncaughtException', err => {
 process.on('unhandledRejection', err => {
   console.error('💥 unhandledRejection:', err);
 });
+
