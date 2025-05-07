@@ -21,6 +21,8 @@ mongoose.connect(process.env.MONGO_URI)
 
 const sesiones = new Map();
 
+
+
 app.post('/webhook', async (req, res) => {
   console.log("🟢 Mensaje recibido");
   console.log(req.body);
@@ -28,6 +30,34 @@ app.post('/webhook', async (req, res) => {
   const { From, Body } = req.body;
   const texto = Body.trim();
   const lower = texto.toLowerCase();
+
+  const ALERGENOS = [
+    'gluten', 'crustaceos', 'huevo', 'pescado', 'cacahuetes',
+    'soja', 'lacteos', 'frutos de cascara', 'apio', 'mostaza',
+    'sesamo', 'sulfitos', 'altramuces', 'moluscos'
+  ];
+  // --- Nueva función ---
+  if (texto.startsWith('alergenos sin')) {
+    const alergenoBuscado = texto.replace('alergenos sin', '').trim();
+    const index = ALERGENOS.indexOf(alergenoBuscado);
+
+    if (index === -1) {
+      return res.send(`<Response><Message>❌ No reconozco ese alérgeno. Prueba con: ${ALERGENOS.join(', ')}</Message></Response>`);
+    }
+
+    const Producto = require('./models/Producto');
+    const productos = await Producto.find();
+
+    const filtrados = productos.filter(prod => !prod.alergenos[index]);
+
+    if (filtrados.length === 0) {
+      return res.send(`<Response><Message>❌ No hay productos sin ${alergenoBuscado}.</Message></Response>`);
+    }
+
+    const nombres = filtrados.map(p => `- ${p.nombre}`).join('\n');
+
+    return res.send(`<Response><Message>✅ Productos sin ${alergenoBuscado}:\n${nombres}</Message></Response>`);
+  }
 
   if (!sesiones.has(From)) {
     // iniciar autenticación
@@ -186,6 +216,8 @@ Escribí "crearproducto" para comenzar.
 
   sesiones.delete(From);
   return res.send(`<Response><Message>⚠️ Algo salió mal. Empezá de nuevo con "crearproducto"</Message></Response>`);
+
+  
 });
 
 const PORT = process.env.PORT || 8080;
