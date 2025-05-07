@@ -36,6 +36,88 @@ app.post('/webhook', async (req, res) => {
     'soja', 'lacteos', 'frutos de cascara', 'apio', 'mostaza',
     'sesamo', 'sulfitos', 'altramuces', 'moluscos'
   ];
+  
+  // --- Si el cliente escribe "alergenos", enviamos botones ---
+  if (texto === 'alergenos') {
+    try {
+      await axios.post(
+        `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
+        {
+          to: From,
+          from: process.env.TWILIO_WHATSAPP_NUMBER,
+          type: "interactive",
+          interactive: {
+            type: "button",
+            body: {
+              text: "¿Qué alérgeno quieres evitar?"
+            },
+            action: {
+              buttons: [
+                {
+                  type: "reply",
+                  reply: {
+                    id: "sin_gluten",
+                    title: "Gluten"
+                  }
+                },
+                {
+                  type: "reply",
+                  reply: {
+                    id: "sin_soja",
+                    title: "Soja"
+                  }
+                },
+                {
+                  type: "reply",
+                  reply: {
+                    id: "sin_lacteos",
+                    title: "Lácteos"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          auth: {
+            username: process.env.TWILIO_ACCOUNT_SID,
+            password: process.env.TWILIO_AUTH_TOKEN
+          },
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      return res.send('<Response></Response>'); // No doble respuesta
+    } catch (err) {
+      console.error("❌ Error al enviar botones:", err.message);
+      return res.send(`<Response><Message>❌ No pude mostrar las opciones. Intentá otra vez.</Message></Response>`);
+    }
+  }
+
+  if (texto === 'sin_gluten' || texto === 'sin_soja' || texto === 'sin_lacteos') {
+    const Producto = require('./models/Producto');
+  
+    const alergenoId = {
+      sin_gluten: 0,
+      sin_soja: 5,
+      sin_lacteos: 6
+    };
+  
+    const index = alergenoId[texto];
+  
+    const productos = await Producto.find();
+    const filtrados = productos.filter(p => !p.alergenos[index]);
+  
+    if (filtrados.length === 0) {
+      return res.send(`<Response><Message>❌ No hay productos sin ese alérgeno.</Message></Response>`);
+    }
+  
+    const nombres = filtrados.map(p => `- ${p.nombre}`).join('\n');
+    return res.send(`<Response><Message>✅ Productos disponibles:\n${nombres}</Message></Response>`);
+  }
+  
+
   // --- Nueva función ---
   if (texto.startsWith('alergenos sin')) {
     const alergenoBuscado = texto.replace('alergenos sin', '').trim();
