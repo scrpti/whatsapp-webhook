@@ -121,7 +121,7 @@ app.post('/webhook', async (req, res) => {
       try {
         const productos = await Producto.find();
         const filtrados = productos.filter(p =>
-          !p.alergenos.some(a => alergenos.includes(a.toLowerCase()))
+          !p.alergenos.some(a => typeof a === 'string' && alergenos.includes(a.toLowerCase()))
         );
 
         if (filtrados.length === 0) {
