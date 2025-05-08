@@ -25,7 +25,7 @@ app.post('/webhook', async (req, res) => {
   console.log("🟢 Mensaje recibido");
   console.log(req.body);
 
-  const { From, Body, ButtonResponse } = req.body;
+  const { From, Body } = req.body;
   const texto = (Body || '').trim().toLowerCase();
 
   if (!sesiones.has(From)) {
@@ -123,7 +123,6 @@ app.post('/webhook', async (req, res) => {
     }
   }
 
-  // Si algo falla
   sesiones.delete(From);
   return res.send(`<Response><Message>⚠️ Algo salió mal. Empezá de nuevo.</Message></Response>`);
 });
@@ -150,7 +149,6 @@ async function enviarMenuInicio(to) {
 
   sesiones.set(to, { fase: 'inicio' });
 }
-
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
