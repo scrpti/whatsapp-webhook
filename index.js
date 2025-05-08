@@ -133,7 +133,7 @@ async function enviarMenuInicio(to) {
     new URLSearchParams({
       MessagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
       To: to,
-      ContentSid: process.env.TWILIO_SELECTOR_WELCOME_SID,
+      ContentSid: process.env.TWILIO_CONTENT_SID_WELCOME,
       ContentVariables: '{}'
     }),
     {
