@@ -132,8 +132,8 @@ async function enviarMenuInicio(to) {
   await axios.post(
     `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
     {
+      messaging_service_sid: process.env.TWILIO_MESSAGING_SERVICE_SID,
       to,
-      from: process.env.TWILIO_WHATSAPP_NUMBER,
       template: {
         name: "selector_welcome",
         language: { code: "es" }
@@ -150,6 +150,7 @@ async function enviarMenuInicio(to) {
 
   sesiones.set(to, { fase: 'inicio' });
 }
+
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
