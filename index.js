@@ -42,8 +42,8 @@ app.post('/webhook', async (req, res) => {
 
   if (sesion.fase === 'inicio') {
     if (texto.includes('admin')) {
-      sesiones.set(From, { fase: 'admin', paso: 'nombre', data: {} });
-      return res.send(`<Response><Message>👍 Empecemos como Admin. ¿Cuál es el nombre del producto?</Message></Response>`);
+      sesiones.set(From, { fase: 'login', paso: 'usuario' });
+      return res.send(`<Response><Message>🔐 Por favor, ingresa tu usuario:</Message></Response>`);
     }
     if (texto.includes('soy') || texto.includes('alergico')) {
       sesiones.set(From, { fase: 'consulta', paso: 'esperar_alergeno' });
@@ -56,6 +56,24 @@ app.post('/webhook', async (req, res) => {
 
     await enviarMenuInicio(From);
     return res.send('<Response></Response>');
+  }
+
+  // Flujo de Login de Admin
+  if (sesion.fase === 'login') {
+    if (sesion.paso === 'usuario') {
+      sesion.usuario = texto;
+      sesion.paso = 'password';
+      return res.send(`<Response><Message>🔒 Ahora ingresa tu contraseña:</Message></Response>`);
+    }
+    if (sesion.paso === 'password') {
+      if (sesion.usuario === process.env.ADMIN_USER && texto === process.env.ADMIN_PASSWORD) {
+        sesiones.set(From, { fase: 'admin', paso: 'nombre', data: {} });
+        return res.send(`<Response><Message>✅ Bienvenido, Admin. ¿Cuál es el nombre del producto?</Message></Response>`);
+      } else {
+        sesiones.delete(From);
+        return res.send(`<Response><Message>❌ Usuario o contraseña incorrectos. Volviendo al menú principal.</Message></Response>`);
+      }
+    }
   }
 
   // Flujo de Admin (crear productos)
@@ -152,4 +170,3 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
 });
-
