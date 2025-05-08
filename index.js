@@ -25,118 +25,133 @@ app.post('/webhook', async (req, res) => {
   console.log("🟢 Mensaje recibido");
   console.log(req.body);
 
-  const { From, Body } = req.body;
-  const texto = (Body || '').trim();
-  const lower = texto.toLowerCase();
+  const { From, Body, ButtonResponse } = req.body;
+  const texto = (Body || '').trim().toLowerCase();
 
-  const iniciarMenu = async () => {
-    try {
-      await axios.post(
-        `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
-        new URLSearchParams({
-          To: From,
-          From: process.env.TWILIO_WHATSAPP_NUMBER,
-          Body: "Selecciona una opción:\n1️⃣ Crear producto\n2️⃣ Consultar productos\n3️⃣ Salir"
-        }),
-        {
-          auth: {
-            username: process.env.TWILIO_ACCOUNT_SID,
-            password: process.env.TWILIO_AUTH_TOKEN
-          }
-        }
-      );
-    } catch (error) {
-      console.error("❌ Error enviando menú:", error.message);
-    }
-  };
-
-  // Si no está en sesión, mostramos menú
   if (!sesiones.has(From)) {
-    if (lower === '1' || lower.includes('crear')) {
-      sesiones.set(From, { paso: 'nombre', data: {} });
-      return res.send(`<Response><Message>👍 Empecemos. ¿Cuál es el nombre del producto?</Message></Response>`);
+    try {
+      await enviarMenuInicio(From);
+      return res.send('<Response></Response>');
+    } catch (err) {
+      console.error("❌ Error mostrando menú:", err.message);
+      return res.send(`<Response><Message>❌ Error. Intenta otra vez.</Message></Response>`);
     }
-    if (lower === '2' || lower.includes('consultar')) {
-      return res.send(`<Response><Message>🔎 Funcionalidad de consulta próximamente...</Message></Response>`);
+  }
+
+  const sesion = sesiones.get(From);
+
+  if (sesion.fase === 'inicio') {
+    if (texto.includes('admin')) {
+      sesiones.set(From, { fase: 'admin', paso: 'nombre', data: {} });
+      return res.send(`<Response><Message>👍 Empecemos como Admin. ¿Cuál es el nombre del producto?</Message></Response>`);
     }
-    if (lower === '3' || lower.includes('salir')) {
+    if (texto.includes('soy') || texto.includes('alergico')) {
+      sesiones.set(From, { fase: 'consulta', paso: 'esperar_alergeno' });
+      return res.send(`<Response><Message>🍽 ¿A qué alérgeno quieres evitar?</Message></Response>`);
+    }
+    if (texto.includes('salir')) {
+      sesiones.delete(From);
       return res.send(`<Response><Message>👋 ¡Hasta luego!</Message></Response>`);
     }
 
-    await iniciarMenu();
+    await enviarMenuInicio(From);
     return res.send('<Response></Response>');
   }
 
-  // Aquí continúa tu flujo normal (crear producto)
-  const sesion = sesiones.get(From);
-
-  if (sesion.paso === 'nombre') {
-    sesion.data.nombre = texto;
-    sesion.paso = 'urlImagen';
-    return res.send(`<Response><Message>📷 ¿Cuál es la URL de la imagen? (o pon N/A)</Message></Response>`);
-  }
-
-  if (sesion.paso === 'urlImagen') {
-    const numMedia = parseInt(req.body.NumMedia || '0', 10);
-    if (numMedia > 0) {
-      const mediaUrl = req.body.MediaUrl0;
-      try {
-        const image = await axios.get(mediaUrl, {
-          responseType: 'arraybuffer',
-          auth: {
-            username: process.env.TWILIO_ACCOUNT_SID,
-            password: process.env.TWILIO_AUTH_TOKEN
-          }
-        });
-
-        const upload = await cloudinary.uploader.upload_stream({ resource_type: "image" }, (error, result) => {
-          if (error) throw error;
-          sesion.data.urlImagen = result.secure_url;
-          sesion.paso = 'alergenos';
-          res.send(`<Response><Message>✅ Imagen recibida. Ahora dime los 14 alérgenos separados por comas (ej: 1,0,0,...)</Message></Response>`);
-        });
-        upload.end(Buffer.from(image.data));
-      } catch (err) {
-        console.error(err);
-        return res.send(`<Response><Message>❌ Error al subir la imagen. ¿Querés intentar otra vez?</Message></Response>`);
-      }
-      return;
+  // Flujo de Admin (crear productos)
+  if (sesion.fase === 'admin') {
+    if (sesion.paso === 'nombre') {
+      sesion.data.nombre = texto;
+      sesion.paso = 'urlImagen';
+      return res.send(`<Response><Message>📷 ¿Cuál es la URL de la imagen? (o pon N/A)</Message></Response>`);
     }
 
-    sesion.data.urlImagen = texto === 'N/A' ? '' : texto;
-    sesion.paso = 'alergenos';
-    return res.send(`<Response><Message>🧬 Dame los 14 alérgenos como 0 o 1 separados por comas (ej: 1,0,0,...)</Message></Response>`);
+    if (sesion.paso === 'urlImagen') {
+      sesion.data.urlImagen = texto === 'n/a' ? '' : texto;
+      sesion.paso = 'alergenos';
+      return res.send(`<Response><Message>🧬 Dame los alérgenos separados por comas (gluten, soja, lacteos, etc)</Message></Response>`);
+    }
+
+    if (sesion.paso === 'alergenos') {
+      sesion.data.alergenos = texto.split(',').map(x => x.trim());
+      sesion.paso = 'trazas';
+      return res.send(`<Response><Message>📌 ¿Qué trazas quieres indicar?</Message></Response>`);
+    }
+
+    if (sesion.paso === 'trazas') {
+      sesion.data.trazas = texto;
+      const Producto = require('./models/Producto');
+      try {
+        const nuevo = new Producto(sesion.data);
+        await nuevo.save();
+        sesiones.delete(From);
+        return res.send(`<Response><Message>✅ Producto guardado exitosamente.</Message></Response>`);
+      } catch (err) {
+        console.error(err);
+        sesiones.delete(From);
+        return res.send(`<Response><Message>❌ Error al guardar el producto: ${err.message}</Message></Response>`);
+      }
+    }
   }
 
-  if (sesion.paso === 'alergenos') {
-    const ALERGENOS = [
-      'gluten', 'crustaceos', 'huevo', 'pescado', 'cacahuetes',
-      'soja', 'lacteos', 'frutos de cascara', 'apio', 'mostaza',
-      'sesamo', 'sulfitos', 'altramuces', 'moluscos'
-    ];
+  // Flujo de Consulta (soy alérgico a)
+  if (sesion.fase === 'consulta') {
+    if (sesion.paso === 'esperar_alergeno') {
+      const Producto = require('./models/Producto');
+      const alergenos = texto.split(',').map(x => x.trim().toLowerCase());
 
-    const mencionados = texto.toLowerCase().split(',').map(x => x.trim()).filter(x => x.length > 0);
-    const alergenosArr = ALERGENOS.map(a => mencionados.includes(a));
+      try {
+        const productos = await Producto.find();
+        const filtrados = productos.filter(p =>
+          !p.alergenos.some(a => alergenos.includes(a.toLowerCase()))
+        );
 
-    sesion.data.alergenos = alergenosArr;
-    sesion.paso = 'trazas';
+        if (filtrados.length === 0) {
+          sesiones.delete(From);
+          return res.send(`<Response><Message>😢 No hay productos compatibles.</Message></Response>`);
+        }
 
-    return res.send(`<Response><Message>📌 ¿Qué trazas quieres indicar?</Message></Response>`);
+        const lista = filtrados.map(p => `- ${p.nombre}`).join('\n');
+        sesiones.delete(From);
+        return res.send(`<Response><Message>📋 Productos compatibles:\n${lista}</Message></Response>`);
+
+      } catch (err) {
+        console.error(err);
+        sesiones.delete(From);
+        return res.send(`<Response><Message>❌ Error al consultar: ${err.message}</Message></Response>`);
+      }
+    }
   }
 
-  if (sesion.paso === 'trazas') {
-    sesion.data.trazas = texto;
-    const Producto = require('./models/Producto');
-    const nuevo = new Producto(sesion.data);
-    await nuevo.save();
-    sesiones.delete(From);
-
-    return res.send(`<Response><Message>✅ Producto creado correctamente. ¡Gracias!</Message></Response>`);
-  }
-
+  // Si algo falla
   sesiones.delete(From);
   return res.send(`<Response><Message>⚠️ Algo salió mal. Empezá de nuevo.</Message></Response>`);
 });
 
+async function enviarMenuInicio(to) {
+  await axios.post(
+    `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
+    {
+      to,
+      from: process.env.TWILIO_WHATSAPP_NUMBER,
+      template: {
+        name: "selector_welcome",
+        language: { code: "es" }
+      }
+    },
+    {
+      auth: {
+        username: process.env.TWILIO_ACCOUNT_SID,
+        password: process.env.TWILIO_AUTH_TOKEN
+      },
+      headers: { 'Content-Type': 'application/json' }
+    }
+  );
+
+  sesiones.set(to, { fase: 'inicio' });
+}
+
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`🚀 Servidor escuchando en puerto ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
+});
