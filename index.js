@@ -133,7 +133,7 @@ async function enviarMenuInicio(to) {
     new URLSearchParams({
       MessagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
       To: to,
-      ContentSid: process.env.TWILIO_CONTENT_SID_WELCOME,
+      ContentSid: process.env.TWILIO_SELECTOR_WELCOME_SID,
       ContentVariables: '{}'
     }),
     {
@@ -152,3 +152,4 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor escuchando en puerto ${PORT}`);
 });
+
