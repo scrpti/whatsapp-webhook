@@ -129,12 +129,13 @@ app.post('/webhook', async (req, res) => {
 
 async function enviarMenuInicio(to) {
   await axios.post(
-    `https://api.twilio.com/v1/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages`,
-    {
-      messaging_service_sid: process.env.TWILIO_MESSAGING_SERVICE_SID,
-      to,
-      content_sid: process.env.TWILIO_CONTENT_SID_WELCOME,  // <--- Usar un content_sid aquí
-    },
+    `https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`,
+    new URLSearchParams({
+      MessagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
+      To: to,
+      ContentSid: process.env.TWILIO_SELECTOR_WELCOME_SID,
+      ContentVariables: '{}'
+    }),
     {
       auth: {
         username: process.env.TWILIO_ACCOUNT_SID,
@@ -146,7 +147,6 @@ async function enviarMenuInicio(to) {
 
   sesiones.set(to, { fase: 'inicio' });
 }
-
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
