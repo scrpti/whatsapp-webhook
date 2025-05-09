@@ -49,6 +49,10 @@ app.post('/webhook', async (req, res) => {
       sesiones.set(From, { fase: 'consulta', paso: 'esperar_alergeno' });
       return res.send(`<Response><Message>🍽 ¿A qué alérgeno quieres evitar?</Message></Response>`);
     }
+    if (texto.includes('ver') || texto.includes('producto')) {
+      sesiones.set(From, { fase: 'ver', paso: 'esperar_nombre' });
+      return res.send(`<Response><Message>🔍 ¿Qué producto quieres ver?</Message></Response>`);
+    }
     if (texto.includes('salir')) {
       sesiones.delete(From);
       return res.send(`<Response><Message>👋 ¡Hasta luego!</Message></Response>`);
@@ -58,7 +62,6 @@ app.post('/webhook', async (req, res) => {
     return res.send('<Response></Response>');
   }
 
-  // Flujo de Login de Admin
   if (sesion.fase === 'login') {
     if (sesion.paso === 'usuario') {
       sesion.usuario = texto;
@@ -76,7 +79,6 @@ app.post('/webhook', async (req, res) => {
     }
   }
 
-  // Flujo de Admin (crear productos)
   if (sesion.fase === 'admin') {
     if (sesion.paso === 'nombre') {
       sesion.data.nombre = texto;
@@ -91,7 +93,7 @@ app.post('/webhook', async (req, res) => {
     }
 
     if (sesion.paso === 'alergenos') {
-      sesion.data.alergenos = texto.split(',').map(x => x.trim());
+      sesion.data.alergenos = texto.split(',').map(x => x.trim().toLowerCase());
       sesion.paso = 'trazas';
       return res.send(`<Response><Message>📌 ¿Qué trazas quieres indicar?</Message></Response>`);
     }
@@ -112,7 +114,6 @@ app.post('/webhook', async (req, res) => {
     }
   }
 
-  // Flujo de Consulta (soy alérgico a)
   if (sesion.fase === 'consulta') {
     if (sesion.paso === 'esperar_alergeno') {
       const Producto = require('./models/Producto');
@@ -121,7 +122,7 @@ app.post('/webhook', async (req, res) => {
       try {
         const productos = await Producto.find();
         const filtrados = productos.filter(p =>
-          !p.alergenos.some(a => typeof a === 'string' && alergenos.includes(a.toLowerCase()))
+          Array.isArray(p.alergenos) && !p.alergenos.some(a => typeof a === 'string' && alergenos.includes(a.toLowerCase()))
         );
 
         if (filtrados.length === 0) {
@@ -141,6 +142,29 @@ app.post('/webhook', async (req, res) => {
     }
   }
 
+  if (sesion.fase === 'ver') {
+    if (sesion.paso === 'esperar_nombre') {
+      const Producto = require('./models/Producto');
+      try {
+        const p = await Producto.findOne({ nombre: new RegExp(`^${texto}$`, 'i') });
+        if (!p) {
+          sesiones.delete(From);
+          return res.send(`<Response><Message>❌ No se encontró el producto con ese nombre.</Message></Response>`);
+        }
+
+        const detalles = `🧾 Nombre: ${p.nombre}\n🧬 Alérgenos: ${p.alergenos.join(', ')}\n📌 Trazas: ${p.trazas}`;
+
+        const mensajeXML = `<?xml version="1.0" encoding="UTF-8"?><Response><Message><Body>${detalles}</Body><Media>${p.urlImagen}</Media></Message></Response>`;
+        sesiones.delete(From);
+        return res.type('text/xml').send(mensajeXML);
+      } catch (err) {
+        console.error(err);
+        sesiones.delete(From);
+        return res.send(`<Response><Message>❌ Error al consultar producto: ${err.message}</Message></Response>`);
+      }
+    }
+  }
+
   sesiones.delete(From);
   return res.send(`<Response><Message>⚠️ Algo salió mal. Empezá de nuevo.</Message></Response>`);
 });
@@ -151,7 +175,7 @@ async function enviarMenuInicio(to) {
     new URLSearchParams({
       MessagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID,
       To: to,
-      ContentSid: process.env.TWILIO_CONTENT_SID_WELCOME,
+      ContentSid: process.env.TWILIO_SELECTOR_WELCOME_SID,
       ContentVariables: '{}'
     }),
     {
