@@ -152,7 +152,18 @@ app.post('/webhook', async (req, res) => {
           return res.send(`<Response><Message>❌ No se encontró el producto con ese nombre.</Message></Response>`);
         }
 
-        const detalles = `🧾 Nombre: ${p.nombre}\n🧬 Alérgenos: ${p.alergenos.join(', ')}\n📌 Trazas: ${p.trazas}`;
+        const ALERGENOS_LABELS = [
+          'Gluten', 'Crustáceos', 'Huevo', 'Pescado', 'Cacahuetes',
+          'Soja', 'Lácteos', 'Frutos de cáscara', 'Apio', 'Mostaza',
+          'Sésamo', 'Sulfitos', 'Altramuces', 'Moluscos'
+        ];
+        
+        const alergenosActivos = producto.alergenos
+          .map((valor, idx) => valor ? ALERGENOS_LABELS[idx] : null)
+          .filter(Boolean)
+          .join(', ') || 'Ninguno';
+
+        const detalles = `🧾 Nombre: ${p.nombre}\n🧬 Alérgenos: ${alergenosActivos}\n📌 Trazas: ${p.trazas}`;
 
         const mensajeXML = `<?xml version="1.0" encoding="UTF-8"?><Response><Message><Body>${detalles}</Body><Media>${p.urlImagen}</Media></Message></Response>`;
         sesiones.delete(From);
