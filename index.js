@@ -158,7 +158,7 @@ app.post('/webhook', async (req, res) => {
           'Sésamo', 'Sulfitos', 'Altramuces', 'Moluscos'
         ];
         
-        const alergenosActivos = producto.alergenos
+        const alergenosActivos = p.alergenos
           .map((valor, idx) => valor ? ALERGENOS_LABELS[idx] : null)
           .filter(Boolean)
           .join(', ') || 'Ninguno';
