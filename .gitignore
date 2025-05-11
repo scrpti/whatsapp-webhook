@@ -1,0 +1,25 @@
+# Node modules
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# dotenv
+.env
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Optional: Railway local files
+railway.json
+
+# Cloudinary auto-generated files (if any)
+cloudinary/
+
+# VSCode settings
+.vscode/
