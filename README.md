@@ -21,7 +21,8 @@ Este bot automatiza la atención al cliente de la panadería Inma mediante Whats
 
 El siguiente diagrama muestra el flujo de conversación:
 
-![Diagrama de flujo del bot](./Flowchart%20Bot%20WP%20Inma.png)
+[Flowchart Bot WP Inma](https://github.com/user-attachments/assets/7da73d6e-806a-4cff-aab4-ec0a8df80b22)
+
 
 ---
 
@@ -39,7 +40,7 @@ El siguiente diagrama muestra el flujo de conversación:
 1. Clona el repositorio:
 
 ```bash
-git clone https://github.com/tuusuario/whatsapp-inma-bot.git
+git clone https://github.com/scrpti/whatsapp-inma-bot.git
 cd whatsapp-inma-bot
 ```
 
